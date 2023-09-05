@@ -1,39 +1,32 @@
-import sha1 from 'sha1';
-import DBClient from '../utils/db';
-import RedisClient from '../utils/redis';
+import redisClient from '../utils/redis';
+import dbClient from '../utils/db';
 
-const { ObjectId } = require('mongodb');
-
-class UsersController {
-  static async postNew(request, response) {
-    const userEmail = request.body.email;
-    if (!userEmail) return response.status(400).send({ error: 'Missing email' });
-
-    const userPassword = request.body.password;
-    if (!userPassword) return response.status(400).send({ error: 'Missing password' });
-
-    const oldUserEmail = await DBClient.db.collection('users').findOne({ email: userEmail });
-    if (oldUserEmail) return response.status(400).send({ error: 'Already exist' });
-
-    const shaUserPassword = sha1(userPassword);
-    const result = await DBClient.db.collection('users').insertOne({ email: userEmail, password: shaUserPassword });
-
-    return response.status(201).send({ id: result.insertedId, email: userEmail });
+class AppController {
+  /**
+   * should return if Redis is alive and if the DB is alive too
+   * by using the 2 utils created previously:
+   * { "redis": true, "db": true } with a status code 200
+   */
+  static getStatus(request, response) {
+    const status = {
+      redis: redisClient.isAlive(),
+      db: dbClient.isAlive(),
+    };
+    response.status(200).send(status);
   }
 
-  static async getMe(request, response) {
-    const token = request.header('X-Token') || null;
-    if (!token) return response.status(401).send({ error: 'Unauthorized' });
-
-    const redisToken = await RedisClient.get(`auth_${token}`);
-    if (!redisToken) return response.status(401).send({ error: 'Unauthorized' });
-
-    const user = await DBClient.db.collection('users').findOne({ _id: ObjectId(redisToken) });
-    if (!user) return response.status(401).send({ error: 'Unauthorized' });
-    delete user.password;
-
-    return response.status(200).send({ id: user._id, email: user.email });
+  /**
+   * should return the number of users and files in DB:
+   * { "users": 12, "files": 1231 }
+   *  with a status code 200
+   */
+  static async getStats(request, response) {
+    const stats = {
+      users: await dbClient.nbUsers(),
+      files: await dbClient.nbFiles(),
+    };
+    response.status(200).send(stats);
   }
 }
 
-module.exports = UsersController;
+module.exports = AppController;
