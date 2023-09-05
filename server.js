@@ -1,15 +1,12 @@
-import express from 'express';
-import indexRouter from './routes/index';
+import router from './routes/index';
 
+const express = require('express');
+// create the Express server
 const app = express();
-
 const port = process.env.PORT || 5000;
 
-app.use(express.json());
+router(app);
 
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`Listening at http://localhost:${port}`);
 });
-app.use('/', indexRouter);
-
-module.exports = app;
